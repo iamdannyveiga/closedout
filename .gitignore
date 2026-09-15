@@ -1,0 +1,24 @@
+# Local state that never belongs in the repository.
+
+# The ledger database. It is per-machine, per-run and rebuildable from
+# schema.sql. Keep it out of git and keep it out of the diff.
+*.db
+*.db-journal
+*.db-wal
+
+# Dispatch sidecars written next to a worker output by scripts/dispatch.sh:
+# provider, model, latency_ms, tokens_in, tokens_out.
+*.meta.json
+
+# Every artifact of a loop: briefs, worker outputs, inspector verdicts and
+# verification evidence. The ledger row records the path and the verdict; the
+# file itself stays on the machine that produced it.
+out/
+
+# Provider keys. Use environment variables, and if you must keep a file, this
+# name is already ignored for you.
+.env
+
+# Byte-compiled Python, left behind by importing ledger/foreman.py.
+__pycache__/
+*.pyc

@@ -1,0 +1,137 @@
+# Routing table: maps each lane to a model tier, a fallback, and the evidence
+# thresholds that replace the primary model when it stops performing.
+#
+# One entry per lane. A lane is a kind of work, not a model. The ledger stores
+# the lane on the loop (loops.task_class) and on every dispatch
+# (dispatches.task_class), so the bake-off can compare models inside one lane
+# without mixing lanes together.
+#
+# Model names below are examples from public providers. Replace them with the
+# models you actually pay for. The rule that matters is not which models you
+# pick, it is that inspector lanes never name a model from the same family as
+# the lane they inspect.
+
+version: 1
+
+# Default thresholds. A lane may override any of them.
+defaults:
+  # Share of calls to this model that returned a gateway or provider error,
+  # measured over the rolling window. Above this number the model is pulled
+  # from routing until a probe passes. 0.10 means one call in ten.
+  quarantine_error_rate: 0.10
+  # What starts a bake-off for a lane.
+  bakeoff_trigger:
+    # Inspector blockers charged to one model, in one lane, inside the window.
+    blockers: 3
+    window_days: 7
+
+# Every field, once:
+#
+#   lane                    the key written into loops.task_class and
+#                           dispatches.task_class. Never rename a lane without
+#                           migrating the ledger, or the history splits in two.
+#   task_class              the same key, spelled out. Kept as its own field so
+#                           a lane can fan out to several classes later.
+#   primary                 the model that runs this lane by default.
+#   fallback                the model that runs this lane when the primary is
+#                           quarantined or out of quota.
+#   effort                  the reasoning effort or thinking budget requested
+#                           from the model, in whatever words that provider
+#                           uses. Recorded on every dispatch so a bake-off can
+#                           hold it constant.
+#   quarantine_error_rate   this lane's override of the default above.
+#   bakeoff_trigger         this lane's override of the default above.
+#   receipt                 free text. Why this lane is set the way it is, and
+#                           the last promotion or quarantine that touched it.
+#                           This line is the audit trail. Write it as a fact
+#                           with a date, not as an opinion.
+
+lanes:
+  - lane: coder
+    task_class: coder
+    primary: deepseek-chat
+    fallback: claude-sonnet-5
+    effort: medium
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. Cheapest model that passes the coder rubric on this repo's own test suite. Fallback is a different family so a provider outage does not stop the lane."
+
+  - lane: tester
+    task_class: tester
+    primary: deepseek-chat
+    fallback: gpt-5-mini
+    effort: low
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. The tester runs the suite and reports PASS or FAIL with the failing lines. Same model as the coder is acceptable here because the tester produces output the inspectors read, not a verdict on its own work."
+
+  - lane: explorer
+    task_class: explorer
+    primary: gemini-2.5-flash
+    fallback: claude-haiku-4-5
+    effort: low
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. The explorer finds files and reads them. Latency matters more than depth, so this lane takes the fastest model that returns whole files without truncating."
+
+  - lane: inspector_a
+    task_class: inspection
+    primary: gpt-5
+    fallback: gemini-2.5-pro
+    effort: high
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. First of the two inspector lanes. Must come from a different family than the coder lane at all times. A promotion in this lane that lands on the coder's family is refused, not recorded."
+
+  - lane: inspector_b
+    task_class: inspection
+    primary: claude-sonnet-5
+    fallback: glm-4.6
+    effort: high
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. Second of the two inspector lanes, and a different family from inspector_a as well as from the coder. Two inspectors that share a family count as one inspector."
+
+  - lane: state_inspector
+    task_class: state_inspection
+    primary: claude-opus-5
+    fallback: gpt-5
+    effort: high
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. Third inspector, called only for state-critical paths: the ledger schema, the triggers, hooks, send paths and anything transactional. Runs in addition to the two inspector lanes, never instead of them."
+
+  - lane: spec_challenger
+    task_class: spec_challenge
+    primary: grok-4
+    fallback: gemini-2.5-pro
+    effort: high
+    quarantine_error_rate: 0.10
+    bakeoff_trigger:
+      blockers: 3
+      window_days: 7
+    receipt: "Set 2026-09-15. Runs before code, on the brief, asking how an agent bypasses this. Runs once per phase, not per turn, because it is slow and it writes long answers. Never the same family as the coder."
+
+# The rules this file cannot express by itself:
+#
+# 1. Promotion never changes the inspector pair for a lane. A bake-off picks a
+#    worker, not a judge.
+# 2. A model above its quarantine_error_rate is removed from primary and
+#    fallback in every lane until a probe passes. The removal is an edit to this
+#    file with a receipt line, not a note in a chat.
+# 3. Cost is the share of a subscription window, not a token count. Two models
+#    with the same price per token are not the same price when one of them draws
+#    on a pool that is nearly spent.
+# 4. Every promotion writes a receipt line into the lane it changes.
