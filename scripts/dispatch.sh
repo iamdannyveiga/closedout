@@ -120,7 +120,9 @@ seconds=${metrics##* }
 
 if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
   echo "dispatch.sh: HTTP $code from $url" >&2
-  head -c 400 "$work/body.json" >&2
+  # dd rather than head -c, because the byte count is a GNU and BSD extension of
+  # head and this script is POSIX sh everywhere else.
+  dd if="$work/body.json" bs=400 count=1 >&2 2>/dev/null
   echo >&2
   exit 4
 fi

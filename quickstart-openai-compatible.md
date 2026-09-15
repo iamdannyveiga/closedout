@@ -72,9 +72,11 @@ path the brief names, because that path is the file the inspectors read, and a
 missing file is an error rather than an empty review:
 
     python3 - <<'PY'
-    import pathlib, re
+    import pathlib, re, sys
     reply = pathlib.Path("out/loop-1-worker.md").read_text()
     block = re.search(r"```[a-zA-Z]*\n(.*?)```", reply, re.S)
+    if block is None:
+        sys.exit("no fenced block in out/loop-1-worker.md, so there is no file to write")
     pathlib.Path("src/parse_window.py").write_text(block.group(1))
     print("wrote src/parse_window.py")
     PY

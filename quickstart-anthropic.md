@@ -9,6 +9,9 @@ You need an Anthropic API key for the coder, and keys for two other providers fo
 the inspectors. Any two will do. This walkthrough uses an OpenAI-compatible
 endpoint and a Google endpoint, because those two are the shortest to set up.
 
+The verification in step 5 is a short Node script, so `node` has to be on the
+path. Everything else here needs only `python3`, `curl` and POSIX `sh`.
+
 The work in the example is a single file: `src/page.html`, a status page that
 reads a JSON file and prints one line per service. Small enough to finish in one
 brief, real enough to have something an inspector can check.
@@ -74,9 +77,11 @@ path the brief names before the inspectors are handed anything. That path is wha
 they read, and a missing file is an error, not an empty review:
 
     python3 - <<'PY'
-    import pathlib, re
+    import pathlib, re, sys
     reply = pathlib.Path("out/loop-1-worker.md").read_text()
     block = re.search(r"```[a-zA-Z]*\n(.*?)```", reply, re.S)
+    if block is None:
+        sys.exit("no fenced block in out/loop-1-worker.md, so there is no file to write")
     pathlib.Path("src/page.html").write_text(block.group(1))
     print("wrote src/page.html")
     PY

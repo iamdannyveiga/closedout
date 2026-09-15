@@ -6,8 +6,9 @@ foreman is a small package you drop next to a codebase so that an agent session
 cannot call work finished when it is not.
 
 It is plain files: a doctrine, a brief template, an inspector rubric, a routing
-table, a SQLite ledger and three shell scripts that talk to a model provider over
-a plain API key. Nothing here is tied to one vendor, one harness or one account.
+table, a SQLite ledger and four shell scripts, two of them talking to a model
+provider over a plain API key and two showing how to drive a coding CLI instead.
+Nothing here is tied to one vendor, one harness or one account.
 It works in Claude Code, Codex CLI, Gemini CLI, OpenCode, or a shell loop you
 wrote yourself.
 
@@ -35,7 +36,8 @@ Copy the package into your repository, or clone it and work inside it:
 
 There is nothing to build and nothing to install. `ledger/foreman.py` uses only
 the Python standard library and expects python3 on the path. The scripts are
-POSIX `sh` and use `curl` and `python3`.
+POSIX `sh` and use `curl` and `python3`. The Anthropic quickstart writes its
+verification check as a short Node script, so that walkthrough also needs `node`.
 
 ## Quickstarts
 
@@ -59,7 +61,7 @@ API key from at least two providers.
 5. File every artifact as a receipt and close the loop. The ledger refuses to
    close it if the inspection or the verification is missing.
 
-## What is different
+## Design commitments
 
 **The refusal is in the database, not in the prompt.** `ledger/schema.sql` has a
 trigger that rejects a loop moving to done unless it carries an inspection

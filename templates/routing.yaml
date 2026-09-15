@@ -62,13 +62,13 @@ lanes:
     task_class: coder
     tier: balanced
     primary: deepseek-chat
-    fallback: claude-sonnet-5
+    fallback: qwen3-coder
     effort: medium
     quarantine_error_rate: 0.10
     bakeoff_trigger:
       blockers: 3
       window_days: 7
-    receipt: "Set 2026-09-15. Cheapest model that passes the coder rubric on this repo's own test suite. Fallback is a different family so a provider outage does not stop the lane."
+    receipt: "Set 2026-09-15. Cheapest model that passes the coder rubric on this repo's own test suite. Fallback is a family that no inspector lane names, so a provider outage does not stop the lane and does not put the coder in a reviewer's family."
 
   - lane: tester
     task_class: tester
@@ -155,6 +155,10 @@ lanes:
 # 4. Every promotion writes a receipt line into the lane it changes.
 # 5. A tier is a band, not a promise about one model, and a fallback exists for
 #    outages, not for pairing. Before a review runs, the models on the coder
-#    lane and the two inspector lanes must be from three different families. If
-#    a fallback would put two reviewers in one family, the review waits for the
-#    primary instead of running with a pair that is worth one inspector.
+#    lane and the two inspector lanes must be from three different families.
+#    That covers the fallbacks as well as the primaries: a coder running on its
+#    fallback must still sit outside both inspector families, so no fallback in
+#    these three lanes may name a family another of them names. If a fallback
+#    would put two reviewers in one family, or put the coder in a reviewer's
+#    family, the review waits for the primary instead of running with a pair
+#    that is worth one inspector.
