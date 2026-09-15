@@ -17,7 +17,8 @@
 #
 # Exit 0 when the first line of <out.md> is PASS.
 # Exit 1 when it is FAIL.
-# Exit 2 when it is neither, which means the run itself is not a usable verdict.
+# Exit 2 when it is neither, or when the call never completed, which means the
+# run itself is not a usable verdict.
 
 set -eu
 
@@ -58,7 +59,12 @@ prompt="$work/prompt.md"
 } > "$prompt"
 
 # dispatch.sh writes the verdict to $out and the call metadata to $out.meta.json.
-"$dir/dispatch.sh" "$prompt" "$out"
+# A call that never completed is not a FAIL verdict, so it leaves here as "no
+# verdict" instead of reaching the caller as curl's exit code 1.
+if ! "$dir/dispatch.sh" "$prompt" "$out"; then
+  echo "inspect.sh: the dispatch failed, so this run produced no verdict" >&2
+  exit 2
+fi
 
 first=$(head -n 1 "$out" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 # The rubric asks for the word PASS or the word FAIL and nothing else on the

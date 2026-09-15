@@ -30,8 +30,10 @@ defaults:
 #   lane                    the key written into loops.task_class and
 #                           dispatches.task_class. Never rename a lane without
 #                           migrating the ledger, or the history splits in two.
-#   task_class              the same key, spelled out. Kept as its own field so
-#                           a lane can fan out to several classes later.
+#   task_class              the class this lane's dispatches are charged to. It
+#                           equals the lane name for the worker lanes, and the
+#                           two inspector lanes share one class, inspection, so
+#                           their blockers are scored together.
 #   tier                    the capability band the lane buys, one of fast,
 #                           balanced or frontier. The lane names the tier it
 #                           needs and the model is chosen to fit it, so a model

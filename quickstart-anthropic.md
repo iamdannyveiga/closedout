@@ -126,6 +126,8 @@ script is written out first so the command below it has something to run:
       ["reads services.json with fetch", /fetch\([^)]*services\.json/.test(page)],
       ["renders the name, the state and the last check time",
         ["name", "state", "checked"].every((key) => page.includes(key))],
+      ["prints the raw state unchanged when the state is not a known one",
+        /(default\s*:|else)[\s\S]{0,120}?\bstate\b/i.test(page)],
     ];
     let ok = true;
     for (const [label, passed] of checks) {
