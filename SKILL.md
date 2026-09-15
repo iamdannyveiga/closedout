@@ -86,11 +86,15 @@ wrapper that matches it: `scripts/harness-claude-code.sh` or
 
 Two inspectors, from model families other than the coder's. Run the same script
 twice with two different `FOREMAN_MODEL` values, and never tell either inspector
-what the other said.
+what the other said. Each run sets its own provider, base URL and key, because
+one coder export does not carry the other providers' credentials:
 
-    FOREMAN_PROVIDER=anthropic FOREMAN_MODEL=gpt-5 \
+    FOREMAN_PROVIDER=openai FOREMAN_BASE_URL=https://api.openai.com/v1 \
+    FOREMAN_API_KEY=$OPENAI_API_KEY FOREMAN_MODEL=gpt-5 \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-a.md
-    FOREMAN_PROVIDER=openai FOREMAN_MODEL=deepseek-chat \
+
+    FOREMAN_PROVIDER=openai FOREMAN_BASE_URL=https://api.deepseek.com \
+    FOREMAN_API_KEY=$DEEPSEEK_API_KEY FOREMAN_MODEL=deepseek-chat \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-b.md
 
 The script exits 0 for PASS, 1 for FAIL and 2 when the reply was not a verdict at

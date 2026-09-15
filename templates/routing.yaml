@@ -32,9 +32,18 @@ defaults:
 #                           migrating the ledger, or the history splits in two.
 #   task_class              the same key, spelled out. Kept as its own field so
 #                           a lane can fan out to several classes later.
-#   primary                 the model that runs this lane by default.
+#   tier                    the capability band the lane buys, one of fast,
+#                           balanced or frontier. The lane names the tier it
+#                           needs and the model is chosen to fit it, so a model
+#                           change is a change inside the band, not a change to
+#                           what the lane is for. Every lane states it, even
+#                           where the answer is obvious, so a reviewer can see
+#                           the intent next to the model name.
+#   primary                 the model that runs this lane by default. It must sit
+#                           in the lane's tier.
 #   fallback                the model that runs this lane when the primary is
-#                           quarantined or out of quota.
+#                           quarantined or out of quota. It must sit in the
+#                           lane's tier too.
 #   effort                  the reasoning effort or thinking budget requested
 #                           from the model, in whatever words that provider
 #                           uses. Recorded on every dispatch so a bake-off can
@@ -49,6 +58,7 @@ defaults:
 lanes:
   - lane: coder
     task_class: coder
+    tier: balanced
     primary: deepseek-chat
     fallback: claude-sonnet-5
     effort: medium
@@ -60,6 +70,7 @@ lanes:
 
   - lane: tester
     task_class: tester
+    tier: fast
     primary: deepseek-chat
     fallback: gpt-5-mini
     effort: low
@@ -71,6 +82,7 @@ lanes:
 
   - lane: explorer
     task_class: explorer
+    tier: fast
     primary: gemini-2.5-flash
     fallback: claude-haiku-4-5
     effort: low
@@ -82,8 +94,9 @@ lanes:
 
   - lane: inspector_a
     task_class: inspection
+    tier: frontier
     primary: gpt-5
-    fallback: gemini-2.5-pro
+    fallback: glm-4.6
     effort: high
     quarantine_error_rate: 0.10
     bakeoff_trigger:
@@ -93,8 +106,9 @@ lanes:
 
   - lane: inspector_b
     task_class: inspection
+    tier: frontier
     primary: claude-sonnet-5
-    fallback: glm-4.6
+    fallback: grok-4
     effort: high
     quarantine_error_rate: 0.10
     bakeoff_trigger:
@@ -104,17 +118,19 @@ lanes:
 
   - lane: state_inspector
     task_class: state_inspection
-    primary: claude-opus-5
-    fallback: gpt-5
+    tier: frontier
+    primary: gemini-2.5-pro
+    fallback: gemini-2.5-flash
     effort: high
     quarantine_error_rate: 0.10
     bakeoff_trigger:
       blockers: 3
       window_days: 7
-    receipt: "Set 2026-09-15. Third inspector, called only for state-critical paths: the ledger schema, the triggers, hooks, send paths and anything transactional. Runs in addition to the two inspector lanes, never instead of them."
+    receipt: "Set 2026-09-15. Third inspector, called only for state-critical paths: the ledger schema, the triggers, hooks, send paths and anything transactional. Runs in addition to the two inspector lanes, never instead of them. Both models in this lane are Google, a family that neither the coder lane nor inspector_a nor inspector_b names, so the third seat stays a third family even when the fallback runs. Primary and fallback share a family on purpose: the seat is a family, and the fallback is its sibling."
 
   - lane: spec_challenger
     task_class: spec_challenge
+    tier: frontier
     primary: grok-4
     fallback: gemini-2.5-pro
     effort: high
@@ -135,3 +151,8 @@ lanes:
 #    with the same price per token are not the same price when one of them draws
 #    on a pool that is nearly spent.
 # 4. Every promotion writes a receipt line into the lane it changes.
+# 5. A tier is a band, not a promise about one model, and a fallback exists for
+#    outages, not for pairing. Before a review runs, the models on the coder
+#    lane and the two inspector lanes must be from three different families. If
+#    a fallback would put two reviewers in one family, the review waits for the
+#    primary instead of running with a pair that is worth one inspector.

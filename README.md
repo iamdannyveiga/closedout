@@ -106,7 +106,84 @@ because the orchestrator has no work of its own to defend.
 
 ## Compared with neighbors
 
-<!-- FIELD_CHECK_PENDING -->
+A field check on 2026-09-15 searched for projects that already do what the three
+claims above describe. The table is what it found, project by project, against
+the columns that matter here.
+
+| Project | Hooks-enforced tracker | Receipts on items | Separate-family reviewer gate | Quota-share routing | Auto bake-off |
+|---|---|---|---|---|---|
+| Claude-Project-Tracker | yes | partial (docs, not evidence) | no | no | no |
+| task-force (agent variants) | no | no | no | no | no |
+| claude-task-manager (dimitritholen) | partial | partial (verify reports) | partial (same-family verifier agents) | no | no |
+| agent-receipts (obsigna / inchwormz / webaesbyamin / Prajhan26) | no | yes | no | no | no |
+| Agent Done Or Not | yes | yes | no | no | no |
+| Tracefold | yes (pre-effect escrow) | yes | no | no | no |
+| inspeximus | no (memory hooks only) | yes | no | no | no |
+| *flow-next (closest non-listed neighbor)* | partial | yes | partial (advisory, one reviewer) | no | no |
+| **foreman** | yes | yes | yes (two, enforced by DB trigger) | yes | yes |
+
+### What is different
+
+The field check found that the reviewer pair in claim A and all of claim C are
+prior art. The self-filling task list whose "done" is blocked by a hook shipped
+first in Claude-Project-Tracker, which refuses to close an issue until wiki
+documentation exists, and in Agent Done Or Not, which blocks the turn until the
+most recent check is fresh and passing. The two-reviewer idea itself is also not new:
+claude-task-manager runs a separate verification pass that can refuse
+completion, and flow-next states the rule that the model which wrote the diff
+never reviews it. flow-next is the closest neighbor, and it routes review to a
+different model family than the writer, records receipts per task, and gates
+`flowctl done` on evidence JSON, but its own documentation says the family rule
+is advice that never fails closed, it runs one reviewer rather than two, and its
+default configuration reviews in-host with the same family. What the field check
+did not find in flow-next, in the twenty-two `verify-*` agents of
+claude-task-manager, in CodeRabbit or anywhere else scanned is the enforcement
+half: a database trigger that structurally refuses a done transition without a
+PASS inspection receipt plus a verification receipt, and a fixed
+`severity: file:line` finding format. Quota-share routing exists in the wild only
+as load balancing across pooled Claude accounts (teamclaude,
+devasheeshG/claude-code-proxy), where it spreads rate limits rather than scoring
+a model's quality against the share of a subscription window it spends, and no
+mainstream router does that. Reviewer-triggered bake-offs, meaning head-to-head
+trials fired by inspector blockers on a real brief instead of an offline
+benchmark, were not found in any project, open source or commercial.
+
+### Sources
+
+- https://github.com/rpostulart/Claude-Project-Tracker
+- https://github.com/PhlyMcPhlison/TaskForce-Agents
+- https://github.com/Shivay00001/ai-agent-autonomous-task-force
+- https://github.com/bobmitx/Nexus-Agentic-Task-Force-
+- https://github.com/dimitritholen/claude-task-manager
+- https://github.com/vibehat/claude-task-manager
+- https://github.com/agent-receipts/obsigna
+- https://agentreceipts.ai/
+- https://github.com/inchwormz/agent-receipts
+- https://github.com/webaesbyamin/agent-receipts
+- https://github.com/Prajhan26/agent-receipts
+- https://github.com/mohamedzhioua/agent-done-or-not
+- https://github.com/marketplace/actions/agent-done-or-not
+- https://github.com/kafidog/DoneAudit
+- https://github.com/TraceFold/tracefold
+- https://doi.org/10.5281/zenodo.22168558
+- https://github.com/DanceNitra/inspeximus
+- https://pypi.org/project/inspeximus/
+- https://github.com/gmickel/flow-next
+- https://github.com/gmickel/flow-next/blob/main/plugins/flow-next/docs/orchestration.md
+- https://flow-next.dev/project/evidence/
+- https://github.com/lm-sys/RouteLLM
+- https://lmsys.org/blog/2024-07-01-routellm/
+- https://docs.notdiamond.ai/docs/quickstart-routing
+- https://openrouter.ai/docs/guides/routing/model-fallbacks
+- https://docs.litellm.ai/docs/routing
+- https://docs.litellm.ai/docs/proxy/load_balancing
+- https://portkey.ai/docs/product/ai-gateway/conditional-routing
+- https://github.com/portkey-ai/gateway
+- https://aider.chat/docs/usage/modes.html
+- https://aider.chat/2024/09/26/architect.html
+- https://docs.coderabbit.ai/reference/glossary
+- https://github.com/KarpelesLab/teamclaude
+- https://github.com/devasheeshG/claude-code-proxy
 
 ## License
 

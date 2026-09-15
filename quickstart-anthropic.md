@@ -69,6 +69,18 @@ The worker writes the file. If your dispatch was a coding CLI rather than a raw
 API call, the brief still goes in as a file and the reply still comes out as one,
 which is what keeps this step the same shape either way.
 
+The reply is markdown with the file in a fenced block, so write it out to the
+path the brief names before the inspectors are handed anything. That path is what
+they read, and a missing file is an error, not an empty review:
+
+    python3 - <<'PY'
+    import pathlib, re
+    reply = pathlib.Path("out/loop-1-worker.md").read_text()
+    block = re.search(r"```[a-zA-Z]*\n(.*?)```", reply, re.S)
+    pathlib.Path("src/page.html").write_text(block.group(1))
+    print("wrote src/page.html")
+    PY
+
 ## 4. Run the two inspectors
 
 Two runs, two different `FOREMAN_MODEL` values, and neither inspector is told
@@ -103,26 +115,58 @@ new loop.
 
 ## 5. Verify and close
 
-The check is yours to run. Here it is a headless load of the page against a
-fixture file, with the output kept as evidence:
+The check is yours to run. Here it is a scripted check of the delivered file
+against the three criteria in the brief, with the output kept as evidence. The
+script is written out first so the command below it has something to run:
 
-    node --experimental-vm-modules check-page.mjs > out/loop-1-verify.txt 2>&1
-    python3 ledger/foreman.py verify 1 --method "loaded the page headless against a three-service fixture" \
+    cat > check-page.mjs <<'JS'
+    import { readFileSync } from "node:fs";
+    const page = readFileSync("src/page.html", "utf8");
+    const checks = [
+      ["reads services.json with fetch", /fetch\([^)]*services\.json/.test(page)],
+      ["renders the name, the state and the last check time",
+        ["name", "state", "checked"].every((key) => page.includes(key))],
+    ];
+    let ok = true;
+    for (const [label, passed] of checks) {
+      process.stdout.write((passed ? "PASS " : "FAIL ") + label + "\n");
+      ok = ok && passed;
+    }
+    process.exit(ok ? 0 : 1);
+    JS
+    node check-page.mjs > out/loop-1-verify.txt 2>&1
+
+Read the evidence file before recording the result. One line per criterion, and
+the script exits nonzero if any of them failed:
+
+    python3 ledger/foreman.py verify 1 --method "checked the delivered page against the three acceptance criteria" \
       --result PASS --evidence out/loop-1-verify.txt
     python3 ledger/foreman.py done 1
 
-Try `done` before this step, on a fresh loop, to see the refusal. The trigger in
-`ledger/schema.sql` rejects the update and the CLI prints what is missing. That
-refusal is the whole design: it does not depend on the session remembering the
-rule.
+To see the refusal yourself, on a second loop with no evidence filed:
+
+    python3 ledger/foreman.py add "second loop, no evidence yet" --owner coder --class coder
+    python3 ledger/foreman.py done 2
+
+    REFUSED: a loop cannot be done without an inspection receipt with verdict PASS
+    and a verification receipt
+    loop 2 is missing an inspection receipt with verdict PASS and a verification receipt.
+    loop 2 stays open. The four artifacts are the brief, the worker output, the
+    inspector verdicts and the verification.
+
+The trigger in `ledger/schema.sql` rejects the update and the CLI prints what is
+missing. That refusal is the whole design: it does not depend on the session
+remembering the rule.
 
 Check the result:
 
     python3 ledger/foreman.py show 1
     python3 ledger/foreman.py list --json
 
-`show` lists the four artifacts and the final state. `list --json` puts the loop
-under `done`, in that order, after `needs_you`, `blocked`, `open` and `claimed`.
+`show` lists the four artifacts and the final state. `list` sorts exceptions
+first, in the order `needs_you`, `blocked`, `open`, `claimed`, with everything
+else after them, so the loop you just closed is the last row rather than the
+first.
 
 ## 6. Keep it running
 

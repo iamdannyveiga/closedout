@@ -38,8 +38,14 @@ remembering to look is not a trigger.
    three keeps the incumbent, because switching costs something and the
    challenger has not earned it.
 
-One brief is one data point. If the lane is important enough to race, run the
-next two briefs in that lane the same way before promoting on a single result.
+The decision is made on that next brief. Not on a benchmark, not on a later
+brief you would rather have run: waiting for a second result turns a trigger into
+a suggestion, and the trigger fires on the work you are already doing. If the
+lane is important enough to race again, the next trigger will fire on its own and
+the second race is a second race, not a condition on the first.
+
+File the brief id in the dispatch rows so the receipt can name the brief the race
+ran on.
 
 ## The promotion
 

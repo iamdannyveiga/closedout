@@ -6,8 +6,11 @@ the same three commands work against a different base URL each time, which is th
 point of keeping the router provider-agnostic.
 
 You need one API key per family you use. This walkthrough uses three: a DeepSeek
-key for the coder, a Zhipu key for the first inspector and a Grok key for the
-second, so all three seats are in different families.
+key for the coder, an Anthropic key for the first inspector and a Google key for
+the second, so all three seats are in different families. The coder goes through
+the OpenAI shape, the first inspector through the Anthropic shape and the second
+through an OpenAI-compatible Google gateway, which is what makes the point that
+the seat is a lane and not a vendor.
 
 The work is a small Python function with a real edge case: `src/parse_window.py`,
 which turns a duration string like `"15m"` or `"2h30m"` into seconds. Small
@@ -64,27 +67,42 @@ rather than from memory.
     python3 ledger/foreman.py dispatch 1 --model deepseek-chat --class coder \
       --latency-ms 6400 --tokens-in 900 --tokens-out 1500 --pool main
 
-A base URL that ends in `/v1` and one that does not both work: the script appends
-the path it needs. Some gateways want a trailing slash and some reject one, which
-is also handled. If the request fails, the script prints the first part of the
-error body and exits nonzero, so a rate limit, an expired key and a wrong model
-name read differently.
+The reply is markdown with the function in a fenced block. Write it out to the
+path the brief names, because that path is the file the inspectors read, and a
+missing file is an error rather than an empty review:
+
+    python3 - <<'PY'
+    import pathlib, re
+    reply = pathlib.Path("out/loop-1-worker.md").read_text()
+    block = re.search(r"```[a-zA-Z]*\n(.*?)```", reply, re.S)
+    pathlib.Path("src/parse_window.py").write_text(block.group(1))
+    print("wrote src/parse_window.py")
+    PY
+
+A base URL that ends in `/v1` is what most of these gateways expect. The script
+uses the base URL as you give it and appends the path it needs, so include the
+version segment your provider documents; a trailing slash is stripped for you
+either way. If the request fails, the script prints the first part of the error
+body and exits nonzero, so a rate limit, an expired key and a wrong model name
+read differently.
 
 ## 4. Run the two inspectors
 
-Same script, same request shape, two different models from two families that are
-not the coder's.
+Same script, two different `FOREMAN_MODEL` values, and the two inspectors are in
+families that are not the coder's. The first inspector runs the Anthropic shape
+and the second runs an OpenAI-compatible gateway, because the inspector seat is a
+lane and not a vendor:
 
-    FOREMAN_PROVIDER=openai \
-    FOREMAN_BASE_URL=https://open.bigmodel.cn/api/paas/v4 \
-    FOREMAN_API_KEY=... \
-    FOREMAN_MODEL=glm-4.6 \
+    FOREMAN_PROVIDER=anthropic \
+    FOREMAN_BASE_URL=https://api.anthropic.com \
+    FOREMAN_API_KEY=$ANTHROPIC_API_KEY \
+    FOREMAN_MODEL=claude-sonnet-5 \
       sh scripts/inspect.sh out/loop-1-brief.md src/parse_window.py out/loop-1-insp-a.md
 
     FOREMAN_PROVIDER=openai \
-    FOREMAN_BASE_URL=https://api.x.ai/v1 \
-    FOREMAN_API_KEY=... \
-    FOREMAN_MODEL=grok-4 \
+    FOREMAN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
+    FOREMAN_API_KEY=$GOOGLE_API_KEY \
+    FOREMAN_MODEL=gemini-2.5-pro \
       sh scripts/inspect.sh out/loop-1-brief.md src/parse_window.py out/loop-1-insp-b.md
 
 The prompt is the rubric from `templates/inspector-rubric.md`, the brief, and the
@@ -93,9 +111,9 @@ file. The first line of the reply is PASS or FAIL, and the findings below it are
 `if` can branch on it directly.
 
     python3 ledger/foreman.py receipt 1 --kind inspection \
-      --path out/loop-1-insp-a.md --model glm-4.6 --verdict PASS
+      --path out/loop-1-insp-a.md --model claude-sonnet-5 --verdict PASS
     python3 ledger/foreman.py receipt 1 --kind inspection \
-      --path out/loop-1-insp-b.md --model grok-4 --verdict PASS
+      --path out/loop-1-insp-b.md --model gemini-2.5-pro --verdict PASS
 
 A FAIL with a blocker goes back to the coder with the findings attached, and both
 inspectors re-run on the changed file. Charge the blocker to the model that
@@ -104,18 +122,51 @@ bake-off trigger later.
 
 ## 5. Verify and close
 
-Run the check yourself. For this loop that is the test file the brief asked for,
-with the raw output kept as evidence:
+Run the check yourself. For this loop that is the edge cases from the brief, run
+against the delivered function, with the raw output kept as evidence. It uses the
+standard library only, so no test file and no test runner have to exist first:
 
-    python3 -m pytest tests/test_parse_window.py -q > out/loop-1-verify.txt 2>&1
-    python3 ledger/foreman.py verify 1 --method "ran pytest on tests/test_parse_window.py" \
+    python3 - <<'PY' > out/loop-1-verify.txt 2>&1
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("parse_window", "src/parse_window.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    ok = True
+    for text, want in [("45", 45), ("15m", 900), ("2h30m", 9000)]:
+        got = module.parse_window(text)
+        print(("PASS " if got == want else "FAIL ") + "%r -> %r, wanted %r" % (text, got, want))
+        ok = ok and got == want
+    try:
+        module.parse_window("")
+    except ValueError:
+        print("PASS empty string raises ValueError")
+    else:
+        print("FAIL empty string did not raise ValueError")
+        ok = False
+    raise SystemExit(0 if ok else 1)
+    PY
+
+Read the evidence file before recording the result. One line per case, and the
+script exits nonzero if any of them failed:
+
+    python3 ledger/foreman.py verify 1 --method "ran the brief's edge cases against the delivered function" \
       --result PASS --evidence out/loop-1-verify.txt
     python3 ledger/foreman.py done 1
 
 If you skip the inspection or the verification, `done` refuses and tells you
-which artifact is missing. That refusal comes from a trigger in the schema, not
-from the CLI being careful, so it holds for any other tool that writes to the
-same database.
+which artifact is missing. To see that on a second loop with no evidence filed:
+
+    python3 ledger/foreman.py add "second loop, no evidence yet" --owner coder --class coder
+    python3 ledger/foreman.py done 2
+
+    REFUSED: a loop cannot be done without an inspection receipt with verdict PASS
+    and a verification receipt
+    loop 2 is missing an inspection receipt with verdict PASS and a verification receipt.
+    loop 2 stays open. The four artifacts are the brief, the worker output, the
+    inspector verdicts and the verification.
+
+That refusal comes from a trigger in the schema, not from the CLI being careful,
+so it holds for any other tool that writes to the same database.
 
     python3 ledger/foreman.py show 1
     python3 ledger/foreman.py list --json

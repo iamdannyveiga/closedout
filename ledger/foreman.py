@@ -343,13 +343,18 @@ def cmd_done(con, args):
     if loop["state"] == "killed":
         return fail("refused: loop %d was killed and cannot be done" % loop["id"])
 
-    failed = con.execute(
-        "SELECT id FROM receipts WHERE loop_id = ? AND kind = 'verification' AND verdict = 'FAIL'",
+    # The trigger decides whether the evidence is present. This guard covers the
+    # one case the trigger does not read: the most recent verification returned
+    # FAIL, so the loop was fixed but never re-verified. An older FAIL is not a
+    # life sentence, because a later PASS replaces it.
+    last_verification = con.execute(
+        "SELECT verdict FROM receipts WHERE loop_id = ? AND kind = 'verification'"
+        " ORDER BY id DESC LIMIT 1",
         (loop["id"],),
     ).fetchone()
-    if failed is not None:
+    if last_verification is not None and last_verification["verdict"] == "FAIL":
         return fail(
-            "refused: loop %d has a verification receipt with verdict FAIL."
+            "refused: the most recent verification of loop %d returned FAIL."
             " Fix the loop and verify it again." % loop["id"]
         )
 

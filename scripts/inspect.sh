@@ -61,13 +61,17 @@ prompt="$work/prompt.md"
 "$dir/dispatch.sh" "$prompt" "$out"
 
 first=$(head -n 1 "$out" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+# The rubric asks for the word PASS or the word FAIL and nothing else on the
+# line, so the match is exact. A prefix match would read PASSING and FAILURE as
+# verdicts, and neither of those is one.
+verdict=$(printf '%s' "$first" | tr '[:lower:]' '[:upper:]')
 
-case "$first" in
-  PASS*)
+case "$verdict" in
+  PASS)
     echo "inspect.sh: PASS" >&2
     exit 0
     ;;
-  FAIL*)
+  FAIL)
     echo "inspect.sh: FAIL" >&2
     exit 1
     ;;
