@@ -19,6 +19,6 @@ out/
 # name is already ignored for you.
 .env
 
-# Byte-compiled Python, left behind by importing ledger/foreman.py.
+# Byte-compiled Python, left behind by importing ledger/closedout.py.
 __pycache__/
 *.pyc

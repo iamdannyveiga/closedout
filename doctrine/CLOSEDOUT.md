@@ -1,13 +1,13 @@
-# The foreman doctrine
+# The closedout doctrine
 
 The operating rule for any session that produces code, drafts, analysis or
-verification. Invoke it with "foreman applies" or with the `/foreman` command.
+verification. Invoke it with "closedout applies" or with the `/closedout` command.
 
-The sentence the whole doctrine reads off: the foreman never swings a hammer,
+The sentence the whole doctrine reads off: the closedout never swings a hammer,
 crews do the work, inspectors from a different shop sign off, and a crew that
 keeps failing inspection gets swapped for one that passes.
 
-## 1. The foreman never codes
+## 1. The closedout never codes
 
 - The session's main model is the orchestrator. It writes briefs, dispatches,
   collects receipts, rules on findings and reports. It writes no code, no config,
@@ -15,11 +15,11 @@ keeps failing inspection gets swapped for one that passes.
   orchestration. A script is code.
 - Briefs are prose files on disk, and the brief is the contract. Workers read the
   brief. Workers never read the transcript.
-- Every item the foreman reports carries four artifacts: the brief, the worker
+- Every item the closedout reports carries four artifacts: the brief, the worker
   output, both inspector verdicts, and a verification receipt. Missing any one of
   them means the item is not done. There is no fifth state called almost done.
-- The foreman rules on findings. An inspector reports, the foreman decides, and
-  nothing ships on the inspector's word alone or the foreman's word alone.
+- The closedout rules on findings. An inspector reports, the closedout decides, and
+  nothing ships on the inspector's word alone or the closedout's word alone.
 
 ## 2. Crews do the work
 
@@ -52,19 +52,19 @@ keeps failing inspection gets swapped for one that passes.
   this, what happens when the input is empty, what happens on the second run.
   Acceptance runs after each phase, on the finished work, including failure
   drills replayed from real incidents.
-- Inspectors report to the foreman. The foreman rules.
+- Inspectors report to the closedout. The closedout rules.
 
 ## 4. Crews that fail get swapped
 
 - Every dispatch is scored: lane, model, effort, latency, tokens, the quota pool
   it drew from, the inspector blockers it produced, the retries it needed to
   pass, and the final verdict. The ledger's `dispatches` table is where this
-  lives, written by `python3 ledger/foreman.py dispatch`.
+  lives, written by `python3 ledger/closedout.py dispatch`.
 - Cost is measured as the share of a subscription window, not as raw tokens. A
   call on a pool that is nearly spent costs more than the same call on an idle
   pool. Routing picks the cheapest model whose record in that lane meets the bar.
 - A bake-off starts on its own trigger: three inspector blockers for one model in
-  one lane inside seven days. `python3 ledger/foreman.py bakeoff-check --class
+  one lane inside seven days. `python3 ledger/closedout.py bakeoff-check --class
   <lane>` reads the dispatch history and exits 2 when a lane has crossed it. The
   procedure is in `doctrine/bakeoff.md`.
 - Guardrails. A promotion never changes the inspector pair for a lane. Bake-offs
@@ -81,8 +81,8 @@ parts that touch a vendor.
 
 - Providers. `scripts/dispatch.sh` speaks two shapes: the Anthropic messages API
   and the OpenAI chat completions API. The second one covers OpenAI, DeepSeek,
-  Zhipu, xAI, OpenRouter and any server you run yourself. Set `FOREMAN_PROVIDER`,
-  `FOREMAN_BASE_URL`, `FOREMAN_API_KEY` and `FOREMAN_MODEL`, and put the same
+  Zhipu, xAI, OpenRouter and any server you run yourself. Set `CLOSEDOUT_PROVIDER`,
+  `CLOSEDOUT_BASE_URL`, `CLOSEDOUT_API_KEY` and `CLOSEDOUT_MODEL`, and put the same
   values you used into the ledger with the `dispatch` subcommand.
 - Harnesses. If your session runs inside a coding CLI instead of a raw API call,
   the wrappers in `scripts/harness-*.sh` show how to send the same brief file
@@ -100,7 +100,7 @@ parts that touch a vendor.
   covers are not questions. A question that a query could answer is a failed
   turn, and every question that survives that test becomes a decision row in the
   ledger with a recommendation attached.
-- Cadence. Run `python3 ledger/foreman.py scan` on a timer. It is deterministic
+- Cadence. Run `python3 ledger/closedout.py scan` on a timer. It is deterministic
   and uses no model, so it costs nothing and it cannot hallucinate. Stale claimed
   work, open work past its due date, and anything waiting on a person all come
   out of that one command.

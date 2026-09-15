@@ -4,14 +4,14 @@
 # Usage: dispatch.sh <brief.md> <out.md>
 #
 # Environment:
-#   FOREMAN_PROVIDER  anthropic or openai (default: anthropic)
-#   FOREMAN_BASE_URL  provider base URL, no trailing slash
-#   FOREMAN_API_KEY   provider API key
-#   FOREMAN_MODEL     model id to run
+#   CLOSEDOUT_PROVIDER  anthropic or openai (default: anthropic)
+#   CLOSEDOUT_BASE_URL  provider base URL, no trailing slash
+#   CLOSEDOUT_API_KEY   provider API key
+#   CLOSEDOUT_MODEL     model id to run
 #
 # Provider shapes:
-#   anthropic  POST $FOREMAN_BASE_URL/v1/messages with the x-api-key header
-#   openai     POST $FOREMAN_BASE_URL/chat/completions with a bearer token
+#   anthropic  POST $CLOSEDOUT_BASE_URL/v1/messages with the x-api-key header
+#   openai     POST $CLOSEDOUT_BASE_URL/chat/completions with a bearer token
 #
 # The openai branch covers every OpenAI-compatible endpoint: OpenAI, DeepSeek,
 # Zhipu, xAI, OpenRouter and a server on your own machine.
@@ -21,7 +21,7 @@
 # returns them. The sidecar is named after the output: out.md gets out.meta.json,
 # and any other path gets <out>.meta.json. Read the numbers from the sidecar
 # rather than from memory, and put them into the ledger with:
-#   python3 ledger/foreman.py dispatch <loop> --model "$FOREMAN_MODEL" --class <lane>
+#   python3 ledger/closedout.py dispatch <loop> --model "$CLOSEDOUT_MODEL" --class <lane>
 #
 # Exits nonzero on an HTTP error and prints the status and the head of the body.
 
@@ -39,29 +39,29 @@ out=$2
 
 [ -f "$brief" ] || { echo "dispatch.sh: no such brief: $brief" >&2; exit 2; }
 
-: "${FOREMAN_PROVIDER:=anthropic}"
+: "${CLOSEDOUT_PROVIDER:=anthropic}"
 
 # Checked with :- rather than with ${VAR:?word}, because the shell prints its own
 # name and line number with that form, which is noise in a dispatch log. All the
 # missing names are reported at once, so one run tells you everything to set.
 missing=
-[ -n "${FOREMAN_MODEL:-}" ]    || missing="$missing FOREMAN_MODEL"
-[ -n "${FOREMAN_API_KEY:-}" ]  || missing="$missing FOREMAN_API_KEY"
-[ -n "${FOREMAN_BASE_URL:-}" ] || missing="$missing FOREMAN_BASE_URL"
+[ -n "${CLOSEDOUT_MODEL:-}" ]    || missing="$missing CLOSEDOUT_MODEL"
+[ -n "${CLOSEDOUT_API_KEY:-}" ]  || missing="$missing CLOSEDOUT_API_KEY"
+[ -n "${CLOSEDOUT_BASE_URL:-}" ] || missing="$missing CLOSEDOUT_BASE_URL"
 if [ -n "$missing" ]; then
   echo "dispatch.sh: set these before dispatching:$missing" >&2
   exit 2
 fi
 
-base=${FOREMAN_BASE_URL%/}
+base=${CLOSEDOUT_BASE_URL%/}
 
-work=$(mktemp -d "${TMPDIR:-/tmp}/foreman.XXXXXX") || exit 3
+work=$(mktemp -d "${TMPDIR:-/tmp}/closedout.XXXXXX") || exit 3
 trap 'rm -rf "$work"' EXIT INT TERM
 
-case "$FOREMAN_PROVIDER" in
+case "$CLOSEDOUT_PROVIDER" in
   anthropic)
     url="$base/v1/messages"
-    python3 - "$brief" "$FOREMAN_MODEL" > "$work/req.json" <<'PY'
+    python3 - "$brief" "$CLOSEDOUT_MODEL" > "$work/req.json" <<'PY'
 import json, sys
 brief_path, model = sys.argv[1], sys.argv[2]
 with open(brief_path, "r", encoding="utf-8") as handle:
@@ -75,7 +75,7 @@ PY
     ;;
   openai)
     url="$base/chat/completions"
-    python3 - "$brief" "$FOREMAN_MODEL" > "$work/req.json" <<'PY'
+    python3 - "$brief" "$CLOSEDOUT_MODEL" > "$work/req.json" <<'PY'
 import json, sys
 brief_path, model = sys.argv[1], sys.argv[2]
 with open(brief_path, "r", encoding="utf-8") as handle:
@@ -87,24 +87,24 @@ print(json.dumps({
 PY
     ;;
   *)
-    echo "dispatch.sh: FOREMAN_PROVIDER must be anthropic or openai, got '$FOREMAN_PROVIDER'" >&2
+    echo "dispatch.sh: CLOSEDOUT_PROVIDER must be anthropic or openai, got '$CLOSEDOUT_PROVIDER'" >&2
     exit 2
     ;;
 esac
 
 # curl is allowed to fail here so the exit code can be reported with the body.
 set +e
-if [ "$FOREMAN_PROVIDER" = "anthropic" ]; then
+if [ "$CLOSEDOUT_PROVIDER" = "anthropic" ]; then
   metrics=$(curl -sS -o "$work/body.json" -w '%{http_code} %{time_total}' -X POST "$url" \
     -H 'content-type: application/json' \
-    -H "x-api-key: $FOREMAN_API_KEY" \
+    -H "x-api-key: $CLOSEDOUT_API_KEY" \
     -H 'anthropic-version: 2023-06-01' \
     --data @"$work/req.json")
   rc=$?
 else
   metrics=$(curl -sS -o "$work/body.json" -w '%{http_code} %{time_total}' -X POST "$url" \
     -H 'content-type: application/json' \
-    -H "Authorization: Bearer $FOREMAN_API_KEY" \
+    -H "Authorization: Bearer $CLOSEDOUT_API_KEY" \
     --data @"$work/req.json")
   rc=$?
 fi
@@ -132,7 +132,7 @@ case "$out" in
   *)    meta="$out.meta.json" ;;
 esac
 
-python3 - "$work/body.json" "$out" "$meta" "$FOREMAN_PROVIDER" "$FOREMAN_MODEL" "$seconds" <<'PY'
+python3 - "$work/body.json" "$out" "$meta" "$CLOSEDOUT_PROVIDER" "$CLOSEDOUT_MODEL" "$seconds" <<'PY'
 import json, sys
 
 body_path, out_path, meta_path, provider, model, seconds = sys.argv[1:7]

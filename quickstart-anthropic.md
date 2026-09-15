@@ -18,11 +18,11 @@ brief, real enough to have something an inspector can check.
 
 ## 1. Set up the ledger
 
-    cd foreman-skill
-    python3 ledger/foreman.py init
-    python3 ledger/foreman.py add "status page reads services.json and lists each service" \
+    cd closedout-skill
+    python3 ledger/closedout.py init
+    python3 ledger/closedout.py add "status page reads services.json and lists each service" \
       --owner coder --class coder --due 2026-09-20
-    python3 ledger/foreman.py claim 1 --owner coder
+    python3 ledger/closedout.py claim 1 --owner coder
     mkdir -p out src
 
 `init` reads `ledger/schema.sql`, so it is safe to run again: the tables, the
@@ -45,14 +45,14 @@ string unchanged when a service has a state the page does not know.
 File the brief before you dispatch it. The brief is artifact one of four, and it
 has to exist as a file before the worker sees it:
 
-    python3 ledger/foreman.py receipt 1 --kind brief --path out/loop-1-brief.md
+    python3 ledger/closedout.py receipt 1 --kind brief --path out/loop-1-brief.md
 
 ## 3. Dispatch the coder
 
-    export FOREMAN_PROVIDER=anthropic
-    export FOREMAN_BASE_URL=https://api.anthropic.com
-    export FOREMAN_API_KEY=...
-    export FOREMAN_MODEL=claude-sonnet-5
+    export CLOSEDOUT_PROVIDER=anthropic
+    export CLOSEDOUT_BASE_URL=https://api.anthropic.com
+    export CLOSEDOUT_API_KEY=...
+    export CLOSEDOUT_MODEL=claude-sonnet-5
     sh scripts/dispatch.sh out/loop-1-brief.md out/loop-1-worker.md
 
 The script sends the brief to `/v1/messages` and writes the reply to
@@ -63,9 +63,9 @@ bad model name are told apart without guessing.
 
 File the output and what it cost:
 
-    python3 ledger/foreman.py receipt 1 --kind worker_output \
+    python3 ledger/closedout.py receipt 1 --kind worker_output \
       --path out/loop-1-worker.md --model claude-sonnet-5
-    python3 ledger/foreman.py dispatch 1 --model claude-sonnet-5 --class coder \
+    python3 ledger/closedout.py dispatch 1 --model claude-sonnet-5 --class coder \
       --latency-ms 8100 --tokens-in 1200 --tokens-out 2400 --pool main
 
 The worker writes the file. If your dispatch was a coding CLI rather than a raw
@@ -88,19 +88,19 @@ they read, and a missing file is an error, not an empty review:
 
 ## 4. Run the two inspectors
 
-Two runs, two different `FOREMAN_MODEL` values, and neither inspector is told
+Two runs, two different `CLOSEDOUT_MODEL` values, and neither inspector is told
 what the other said or which model wrote the file.
 
-    FOREMAN_PROVIDER=openai \
-    FOREMAN_BASE_URL=https://api.deepseek.com \
-    FOREMAN_API_KEY=... \
-    FOREMAN_MODEL=deepseek-chat \
+    CLOSEDOUT_PROVIDER=openai \
+    CLOSEDOUT_BASE_URL=https://api.deepseek.com \
+    CLOSEDOUT_API_KEY=... \
+    CLOSEDOUT_MODEL=deepseek-chat \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-a.md
 
-    FOREMAN_PROVIDER=openai \
-    FOREMAN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
-    FOREMAN_API_KEY=... \
-    FOREMAN_MODEL=gemini-2.5-pro \
+    CLOSEDOUT_PROVIDER=openai \
+    CLOSEDOUT_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
+    CLOSEDOUT_API_KEY=... \
+    CLOSEDOUT_MODEL=gemini-2.5-pro \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-b.md
 
 `inspect.sh` builds the prompt from `templates/inspector-rubric.md`, the brief and
@@ -109,9 +109,9 @@ the reply. Exit 0 is PASS, exit 1 is FAIL, exit 2 means the reply was not a
 verdict. Each verdict is `severity: file:line: issue` lines, and any blocker
 severity is a FAIL.
 
-    python3 ledger/foreman.py receipt 1 --kind inspection \
+    python3 ledger/closedout.py receipt 1 --kind inspection \
       --path out/loop-1-insp-a.md --model deepseek-chat --verdict PASS
-    python3 ledger/foreman.py receipt 1 --kind inspection \
+    python3 ledger/closedout.py receipt 1 --kind inspection \
       --path out/loop-1-insp-b.md --model gemini-2.5-pro --verdict PASS
 
 If either inspector fails the file, the loop goes back to the coder with the
@@ -146,14 +146,14 @@ script is written out first so the command below it has something to run:
 Read the evidence file before recording the result. One line per criterion, and
 the script exits nonzero if any of them failed:
 
-    python3 ledger/foreman.py verify 1 --method "checked the delivered page against the three acceptance criteria" \
+    python3 ledger/closedout.py verify 1 --method "checked the delivered page against the three acceptance criteria" \
       --result PASS --evidence out/loop-1-verify.txt
-    python3 ledger/foreman.py done 1
+    python3 ledger/closedout.py done 1
 
 To see the refusal yourself, on a second loop with no evidence filed:
 
-    python3 ledger/foreman.py add "second loop, no evidence yet" --owner coder --class coder
-    python3 ledger/foreman.py done 2
+    python3 ledger/closedout.py add "second loop, no evidence yet" --owner coder --class coder
+    python3 ledger/closedout.py done 2
 
     REFUSED: a loop cannot be done without an inspection receipt with verdict PASS
     and a verification receipt
@@ -167,8 +167,8 @@ remembering the rule.
 
 Check the result:
 
-    python3 ledger/foreman.py show 1
-    python3 ledger/foreman.py list --json
+    python3 ledger/closedout.py show 1
+    python3 ledger/closedout.py list --json
 
 `show` lists the four artifacts and the final state. `list` sorts exceptions
 first, in the order `needs_you`, `blocked`, `open`, `claimed`, with everything
@@ -177,14 +177,14 @@ first.
 
 ## 6. Keep it running
 
-    python3 ledger/foreman.py scan
+    python3 ledger/closedout.py scan
 
 The scanner is deterministic and uses no model. It reports loops claimed and
 untouched, loops open past their due date, and loops waiting on you. It exits 1
 when it finds any, so a timer can turn it into a notification. Run it every few
 minutes; it costs nothing.
 
-    python3 ledger/foreman.py bakeoff-check --class coder
+    python3 ledger/closedout.py bakeoff-check --class coder
 
 This one answers whether the coder lane has earned a bake-off: three blockers
 charged to one model in one lane inside seven days. Exit 2 means yes. See

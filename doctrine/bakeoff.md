@@ -12,8 +12,8 @@ work: one model, one lane, one window.
 
 The check is mechanical:
 
-    python3 ledger/foreman.py bakeoff-check --class coder
-    python3 ledger/foreman.py bakeoff-check --class coder --window-days 7
+    python3 ledger/closedout.py bakeoff-check --class coder
+    python3 ledger/closedout.py bakeoff-check --class coder --window-days 7
 
 It reads the `dispatches` table, sums the blockers per model in that lane inside
 the window, and prints every model at or above three. Exit code 2 means at least

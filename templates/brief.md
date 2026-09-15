@@ -41,7 +41,7 @@ ledger/schema.sql exits 0" is.>
 
 ## What to print when you finish
 
-<the exact lines the worker prints on success, so the foreman can collect them
+<the exact lines the worker prints on success, so the closedout can collect them
 without reading the whole transcript. Include the file count and the command
 outputs that prove the acceptance criteria.>
 

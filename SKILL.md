@@ -1,14 +1,14 @@
 ---
-name: foreman
-description: Run work through the foreman loop, where the session writes briefs instead of code, crews implement, inspectors from another model family sign off, and every claim carries a receipt in a SQLite ledger.
+name: closedout
+description: Run work through the closedout loop, where the session writes briefs instead of code, crews implement, inspectors from another model family sign off, and every claim carries a receipt in a SQLite ledger.
 ---
 
-# foreman
+# closedout
 
-Read this file, then take the orchestrator seat. `doctrine/FOREMAN.md` holds the
+Read this file, then take the orchestrator seat. `doctrine/CLOSEDOUT.md` holds the
 same rule in full, and `templates/` holds the three files you will use most.
 
-The rule in one sentence: the foreman never swings a hammer, crews do the work,
+The rule in one sentence: the closedout never swings a hammer, crews do the work,
 inspectors from a different shop sign off, and a crew that keeps failing
 inspection gets swapped for one that passes.
 
@@ -19,7 +19,7 @@ You do not write the code, the config, the markup or the hook files that the wor
 produces. If you catch yourself about to write the deliverable, stop and write
 the brief instead.
 
-Two things you may do yourself: run the ledger commands in `ledger/foreman.py`,
+Two things you may do yourself: run the ledger commands in `ledger/closedout.py`,
 and run a shell one-liner that dispatches a worker. A script is code, so a script
 is a brief.
 
@@ -39,11 +39,11 @@ around it.
 
 ## Setting up
 
-    python3 ledger/foreman.py init
-    python3 ledger/foreman.py add "build the status page" --owner coder --class coder --due 2026-09-20
-    python3 ledger/foreman.py claim 1 --owner coder
+    python3 ledger/closedout.py init
+    python3 ledger/closedout.py add "build the status page" --owner coder --class coder --due 2026-09-20
+    python3 ledger/closedout.py claim 1 --owner coder
 
-The database path comes from `--db`, then `$FOREMAN_DB`, then `./foreman.db`.
+The database path comes from `--db`, then `$CLOSEDOUT_DB`, then `./closedout.db`.
 Keep loops small enough that one brief covers one loop.
 
 ## Writing the brief
@@ -56,27 +56,27 @@ conversation.
 
 Save the brief, file it, and only then dispatch:
 
-    python3 ledger/foreman.py receipt 1 --kind brief --path out/loop-1-brief.md
+    python3 ledger/closedout.py receipt 1 --kind brief --path out/loop-1-brief.md
 
 ## Dispatching a worker
 
 The model per lane is set in `templates/routing.yaml`. Ask the ledger what the
 lane has been scoring before you pick:
 
-    python3 ledger/foreman.py bakeoff-check --class coder
+    python3 ledger/closedout.py bakeoff-check --class coder
 
 Send the brief through the provider script:
 
-    export FOREMAN_PROVIDER=anthropic
-    export FOREMAN_BASE_URL=https://api.anthropic.com
-    export FOREMAN_API_KEY=...
-    export FOREMAN_MODEL=claude-sonnet-5
+    export CLOSEDOUT_PROVIDER=anthropic
+    export CLOSEDOUT_BASE_URL=https://api.anthropic.com
+    export CLOSEDOUT_API_KEY=...
+    export CLOSEDOUT_MODEL=claude-sonnet-5
     sh scripts/dispatch.sh out/loop-1-brief.md out/loop-1-worker.md
 
 Then file the result, including what it cost:
 
-    python3 ledger/foreman.py receipt 1 --kind worker_output --path out/loop-1-worker.md --model claude-sonnet-5
-    python3 ledger/foreman.py dispatch 1 --model claude-sonnet-5 --class coder --latency-ms 8100 --tokens-in 1200 --tokens-out 2400 --pool main
+    python3 ledger/closedout.py receipt 1 --kind worker_output --path out/loop-1-worker.md --model claude-sonnet-5
+    python3 ledger/closedout.py dispatch 1 --model claude-sonnet-5 --class coder --latency-ms 8100 --tokens-in 1200 --tokens-out 2400 --pool main
 
 If your session runs inside a coding CLI instead of a raw API call, use the
 wrapper that matches it: `scripts/harness-claude-code.sh` or
@@ -85,16 +85,16 @@ wrapper that matches it: `scripts/harness-claude-code.sh` or
 ## Running the inspectors
 
 Two inspectors, from model families other than the coder's. Run the same script
-twice with two different `FOREMAN_MODEL` values, and never tell either inspector
+twice with two different `CLOSEDOUT_MODEL` values, and never tell either inspector
 what the other said. Each run sets its own provider, base URL and key, because
 one coder export does not carry the other providers' credentials:
 
-    FOREMAN_PROVIDER=openai FOREMAN_BASE_URL=https://api.openai.com/v1 \
-    FOREMAN_API_KEY=$OPENAI_API_KEY FOREMAN_MODEL=gpt-5 \
+    CLOSEDOUT_PROVIDER=openai CLOSEDOUT_BASE_URL=https://api.openai.com/v1 \
+    CLOSEDOUT_API_KEY=$OPENAI_API_KEY CLOSEDOUT_MODEL=gpt-5 \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-a.md
 
-    FOREMAN_PROVIDER=openai FOREMAN_BASE_URL=https://api.deepseek.com \
-    FOREMAN_API_KEY=$DEEPSEEK_API_KEY FOREMAN_MODEL=deepseek-chat \
+    CLOSEDOUT_PROVIDER=openai CLOSEDOUT_BASE_URL=https://api.deepseek.com \
+    CLOSEDOUT_API_KEY=$DEEPSEEK_API_KEY CLOSEDOUT_MODEL=deepseek-chat \
       sh scripts/inspect.sh out/loop-1-brief.md src/page.html out/loop-1-insp-b.md
 
 The script exits 0 for PASS, 1 for FAIL and 2 when the reply was not a verdict at
@@ -108,8 +108,8 @@ transactional, get a third inspector from a third family.
 
 Run the check yourself, or have a verifier run it, and record what it returned:
 
-    python3 ledger/foreman.py verify 1 --method "ran the test suite" --result PASS --evidence out/loop-1-suite.txt
-    python3 ledger/foreman.py done 1
+    python3 ledger/closedout.py verify 1 --method "ran the test suite" --result PASS --evidence out/loop-1-suite.txt
+    python3 ledger/closedout.py done 1
 
 Close the loop only after that. If the ledger refuses, read the refusal out loud
 and go and get the missing artifact.
@@ -124,12 +124,12 @@ evidence.
 
 ## Reporting
 
-Report a loop as done only when `python3 ledger/foreman.py show <id>` lists a
+Report a loop as done only when `python3 ledger/closedout.py show <id>` lists a
 brief, a worker output, an inspection with verdict PASS, and a verification, and
 the loop state reads done. Otherwise report what is missing.
 
 Run the scanner on a timer. It uses no model, so it costs nothing:
 
-    python3 ledger/foreman.py scan
+    python3 ledger/closedout.py scan
 
 It exits 1 when something is stale. Report those items before anything else.

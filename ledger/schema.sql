@@ -1,7 +1,7 @@
--- Ledger schema for the foreman skill: loops, receipts, verifications, decisions, dispatches.
+-- Ledger schema for the closedout skill: loops, receipts, verifications, decisions, dispatches.
 --
--- Load it with:  sqlite3 foreman.db < ledger/schema.sql
--- The CLI does this for you:  python3 ledger/foreman.py init
+-- Load it with:  sqlite3 closedout.db < ledger/schema.sql
+-- The CLI does this for you:  python3 ledger/closedout.py init
 --
 -- The ledger is the only place work lives. A loop is not done because a model
 -- said so; it is done because the receipts and the verification exist.

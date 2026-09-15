@@ -1,8 +1,8 @@
-# foreman
+# closedout
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-foreman is a small package you drop next to a codebase so that an agent session
+closedout is a small package you drop next to a codebase so that an agent session
 cannot call work finished when it is not.
 
 It is plain files: a doctrine, a brief template, an inspector rubric, a routing
@@ -19,7 +19,7 @@ the same model that did the work, on the same context, with the same blind spots
 If the work is wrong, the summary is confidently wrong in exactly the same way,
 and the only way to find out is to read the diff yourself.
 
-foreman replaces the summary with evidence. A session that runs under the
+closedout replaces the summary with evidence. A session that runs under the
 doctrine writes a brief instead of code, sends it to a worker, sends the result
 to two inspectors from other model families, runs a verification, and files all
 of it in a ledger. The ledger refuses to close the item until the evidence is
@@ -30,11 +30,11 @@ in a prompt.
 
 Copy the package into your repository, or clone it and work inside it:
 
-    git clone <your fork> foreman-skill
-    cd foreman-skill
-    python3 ledger/foreman.py init
+    git clone <your fork> closedout-skill
+    cd closedout-skill
+    python3 ledger/closedout.py init
 
-There is nothing to build and nothing to install. `ledger/foreman.py` uses only
+There is nothing to build and nothing to install. `ledger/closedout.py` uses only
 the Python standard library and expects python3 on the path. The scripts are
 POSIX `sh` and use `curl` and `python3`. The Anthropic quickstart writes its
 verification check as a short Node script, so that walkthrough also needs `node`.
@@ -83,7 +83,7 @@ written back into the routing table as a receipt line.
 work is deterministic, uses no model, and costs nothing to run every five
 minutes.
 
-**The foreman writes no code.** The session that orchestrates is not the session
+**The closedout writes no code.** The session that orchestrates is not the session
 that implements. That single split is what makes the rest of it checkable,
 because the orchestrator has no work of its own to defend.
 
@@ -91,16 +91,16 @@ because the orchestrator has no work of its own to defend.
 
 | Path | What it is |
 | --- | --- |
-| `doctrine/FOREMAN.md` | The rule in full: four sections plus how to adapt it |
+| `doctrine/CLOSEDOUT.md` | The rule in full: four sections plus how to adapt it |
 | `doctrine/bakeoff.md` | How a lane's model gets replaced by evidence |
 | `SKILL.md` | The doctrine as instructions for a Claude Code session |
 | `AGENTS.md` | The same instructions for Codex CLI, Gemini CLI and OpenCode |
-| `.claude/commands/foreman.md` | The `/foreman` slash command |
+| `.claude/commands/closedout.md` | The `/closedout` slash command |
 | `templates/brief.md` | The worker contract |
 | `templates/inspector-rubric.md` | The PASS or FAIL rubric the inspectors follow |
 | `templates/routing.yaml` | Lane to model, with the bake-off thresholds |
 | `ledger/schema.sql` | Tables, indexes, the ready view and the evidence trigger |
-| `ledger/foreman.py` | The CLI: add, claim, block, ask, decide, receipt, verify, done, kill, list, show, dispatch, scan, bakeoff-check |
+| `ledger/closedout.py` | The CLI: add, claim, block, ask, decide, receipt, verify, done, kill, list, show, dispatch, scan, bakeoff-check |
 | `scripts/dispatch.sh` | Send a brief to a worker on an API key |
 | `scripts/inspect.sh` | Run one inspector over one file |
 | `scripts/harness-*.sh` | Examples for driving a coding CLI instead of a raw API call |
@@ -122,7 +122,7 @@ the columns that matter here.
 | Tracefold | yes (pre-effect escrow) | yes | no | no | no |
 | inspeximus | no (memory hooks only) | yes | no | no | no |
 | *flow-next (closest non-listed neighbor)* | partial | yes | partial (advisory, one reviewer) | no | no |
-| **foreman** | yes | yes | yes (two, enforced by DB trigger) | yes | yes |
+| **closedout** | yes | yes | yes (two, enforced by DB trigger) | yes | yes |
 
 ### What is different
 

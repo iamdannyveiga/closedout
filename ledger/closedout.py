@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""foreman: the loop ledger CLI. One SQLite file, standard library only."""
+"""closedout: the loop ledger CLI. One SQLite file, standard library only."""
 
 import argparse
 import json
@@ -110,12 +110,12 @@ def fail(message, code=1):
 # ------------------------------------------------------------------ db helpers
 
 def db_path_for(args):
-    """--db wins, then FOREMAN_DB, then ./foreman.db."""
+    """--db wins, then CLOSEDOUT_DB, then ./closedout.db."""
     if getattr(args, "db", None):
         return args.db
-    if os.environ.get("FOREMAN_DB"):
-        return os.environ["FOREMAN_DB"]
-    return "./foreman.db"
+    if os.environ.get("CLOSEDOUT_DB"):
+        return os.environ["CLOSEDOUT_DB"]
+    return "./closedout.db"
 
 
 def connect(path):
@@ -172,7 +172,7 @@ def row_to_dict(row):
 def cmd_init(con, args):
     """Create the schema in the target database."""
     if not os.path.exists(SCHEMA_PATH):
-        return fail("foreman: schema not found at %s" % SCHEMA_PATH)
+        return fail("closedout: schema not found at %s" % SCHEMA_PATH)
     with open(SCHEMA_PATH, "r", encoding="utf-8") as handle:
         con.executescript(handle.read())
     con.commit()
@@ -183,7 +183,7 @@ def cmd_init(con, args):
 def cmd_add(con, args):
     """Add a loop in state open."""
     if args.parent is not None and get_loop(con, args.parent) is None:
-        return fail("foreman: no parent loop with id %s" % args.parent)
+        return fail("closedout: no parent loop with id %s" % args.parent)
     stamp = now_iso()
     cur = con.execute(
         "INSERT INTO loops (title, owner, state, task_class, created_at, updated_at, due_at, parent_id)"
@@ -204,7 +204,7 @@ def cmd_claim(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if loop["state"] not in ("open", "blocked"):
         return fail(
             "refused: loop %d is %s and cannot be claimed" % (loop["id"], loop["state"])
@@ -220,7 +220,7 @@ def cmd_block(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if loop["state"] in ("done", "killed"):
         return fail("refused: loop %d is %s and cannot be blocked" % (loop["id"], loop["state"]))
     touch(con, loop["id"], state="blocked", notes=args.reason)
@@ -234,7 +234,7 @@ def cmd_ask(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if loop["state"] in ("done", "killed"):
         return fail("refused: loop %d is %s and cannot ask" % (loop["id"], loop["state"]))
     options = args.options
@@ -255,7 +255,7 @@ def cmd_decide(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     row = con.execute(
         "SELECT * FROM decisions WHERE loop_id = ? AND chosen IS NULL ORDER BY id LIMIT 1",
         (loop["id"],),
@@ -287,14 +287,14 @@ def cmd_receipt(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if args.kind not in RECEIPT_KINDS:
         return fail(
-            "foreman: kind must be one of %s" % ", ".join(RECEIPT_KINDS)
+            "closedout: kind must be one of %s" % ", ".join(RECEIPT_KINDS)
         )
     verdict = args.verdict.upper() if args.verdict else None
     if verdict is not None and verdict not in ("PASS", "FAIL"):
-        return fail("foreman: verdict must be PASS or FAIL")
+        return fail("closedout: verdict must be PASS or FAIL")
     cur = con.execute(
         "INSERT INTO receipts (loop_id, kind, path, model, verdict, created_at)"
         " VALUES (?, ?, ?, ?, ?, ?)",
@@ -313,7 +313,7 @@ def cmd_verify(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     con.execute(
         "INSERT INTO verifications (loop_id, method, result, evidence_path, created_at)"
         " VALUES (?, ?, ?, ?, ?)",
@@ -336,7 +336,7 @@ def cmd_done(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if loop["state"] == "done":
         print("loop %d is already done" % loop["id"])
         return 0
@@ -344,9 +344,22 @@ def cmd_done(con, args):
         return fail("refused: loop %d was killed and cannot be done" % loop["id"])
 
     # The trigger decides whether the evidence is present. This guard covers the
-    # one case the trigger does not read: the most recent verification returned
-    # FAIL, so the loop was fixed but never re-verified. An older FAIL is not a
-    # life sentence, because a later PASS replaces it.
+    # two cases the trigger does not read: the most recent inspection returned
+    # FAIL, or the most recent verification did, so the loop was fixed but never
+    # signed off again. An older FAIL is not a life sentence, because a later
+    # PASS replaces it. The inspection half matches the reading in the
+    # loops_ready view, which counts a final FAIL as a blocker still standing.
+    last_inspection = con.execute(
+        "SELECT verdict FROM receipts WHERE loop_id = ? AND kind = 'inspection'"
+        " ORDER BY id DESC LIMIT 1",
+        (loop["id"],),
+    ).fetchone()
+    if last_inspection is not None and last_inspection["verdict"] == "FAIL":
+        return fail(
+            "refused: the most recent inspection of loop %d returned FAIL."
+            " Fix the loop and inspect it again." % loop["id"]
+        )
+
     last_verification = con.execute(
         "SELECT verdict FROM receipts WHERE loop_id = ? AND kind = 'verification'"
         " ORDER BY id DESC LIMIT 1",
@@ -385,7 +398,7 @@ def cmd_kill(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     if loop["state"] == "killed":
         print("loop %d is already killed" % loop["id"])
         return 0
@@ -442,7 +455,7 @@ def cmd_show(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     receipts = con.execute(
         "SELECT * FROM receipts WHERE loop_id = ? ORDER BY id", (loop["id"],)
     ).fetchall()
@@ -538,7 +551,7 @@ def cmd_dispatch(con, args):
     try:
         loop = require_loop(con, args.id)
     except LookupError as exc:
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     cur = con.execute(
         "INSERT INTO dispatches (loop_id, task_class, model, effort, latency_ms, tokens_in,"
         " tokens_out, quota_pool, blockers, retries, verdict, created_at)"
@@ -680,11 +693,11 @@ def build_parser():
     common.add_argument(
         "--db",
         default=argparse.SUPPRESS,
-        help="path to the ledger file (default: $FOREMAN_DB, then ./foreman.db)",
+        help="path to the ledger file (default: $CLOSEDOUT_DB, then ./closedout.db)",
     )
 
     parser = argparse.ArgumentParser(
-        prog="foreman",
+        prog="closedout",
         description="The loop ledger. Loops, receipts, verifications, decisions, dispatches.",
         parents=[common],
     )
@@ -780,17 +793,17 @@ def main(argv=None):
     path = db_path_for(args)
     if args.command != "init" and not os.path.exists(path) and path != ":memory:":
         return fail(
-            "foreman: no ledger at %s. Run: python3 ledger/foreman.py --db %s init" % (path, path)
+            "closedout: no ledger at %s. Run: python3 ledger/closedout.py --db %s init" % (path, path)
         )
     try:
         con = connect(path)
     except sqlite3.Error as exc:
-        return fail("foreman: cannot open %s: %s" % (path, exc))
+        return fail("closedout: cannot open %s: %s" % (path, exc))
     try:
         return args.handler(con, args)
     except sqlite3.Error as exc:
         con.rollback()
-        return fail("foreman: %s" % exc)
+        return fail("closedout: %s" % exc)
     finally:
         con.close()
 

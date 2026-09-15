@@ -18,11 +18,11 @@ enough for one brief, and the edge case is what the inspectors will find.
 
 ## 1. Set up the ledger
 
-    cd foreman-skill
-    python3 ledger/foreman.py init
-    python3 ledger/foreman.py add "parse duration strings into seconds" \
+    cd closedout-skill
+    python3 ledger/closedout.py init
+    python3 ledger/closedout.py add "parse duration strings into seconds" \
       --owner coder --class coder --due 2026-09-20
-    python3 ledger/foreman.py claim 1 --owner coder
+    python3 ledger/closedout.py claim 1 --owner coder
     mkdir -p out src
 
 Keep one loop to one brief. If you find yourself adding a second deliverable to
@@ -43,17 +43,17 @@ file, no new dependencies, no edits to the ledger.
 
 File the brief before dispatch:
 
-    python3 ledger/foreman.py receipt 1 --kind brief --path out/loop-1-brief.md
+    python3 ledger/closedout.py receipt 1 --kind brief --path out/loop-1-brief.md
 
 ## 3. Dispatch the coder
 
 Every provider below is reached through the same script and the same request
 shape. Only the three environment variables change.
 
-    export FOREMAN_PROVIDER=openai
-    export FOREMAN_BASE_URL=https://api.deepseek.com
-    export FOREMAN_API_KEY=...
-    export FOREMAN_MODEL=deepseek-chat
+    export CLOSEDOUT_PROVIDER=openai
+    export CLOSEDOUT_BASE_URL=https://api.deepseek.com
+    export CLOSEDOUT_API_KEY=...
+    export CLOSEDOUT_MODEL=deepseek-chat
     sh scripts/dispatch.sh out/loop-1-brief.md out/loop-1-worker.md
 
 The request goes to `<base>/chat/completions` with the brief as the user message.
@@ -62,9 +62,9 @@ The reply is written to `out/loop-1-worker.md`, and the sidecar
 milliseconds and the token counts, so the ledger row is filled from the file
 rather than from memory.
 
-    python3 ledger/foreman.py receipt 1 --kind worker_output \
+    python3 ledger/closedout.py receipt 1 --kind worker_output \
       --path out/loop-1-worker.md --model deepseek-chat
-    python3 ledger/foreman.py dispatch 1 --model deepseek-chat --class coder \
+    python3 ledger/closedout.py dispatch 1 --model deepseek-chat --class coder \
       --latency-ms 6400 --tokens-in 900 --tokens-out 1500 --pool main
 
 The reply is markdown with the function in a fenced block. Write it out to the
@@ -90,21 +90,21 @@ read differently.
 
 ## 4. Run the two inspectors
 
-Same script, two different `FOREMAN_MODEL` values, and the two inspectors are in
+Same script, two different `CLOSEDOUT_MODEL` values, and the two inspectors are in
 families that are not the coder's. The first inspector runs the Anthropic shape
 and the second runs an OpenAI-compatible gateway, because the inspector seat is a
 lane and not a vendor:
 
-    FOREMAN_PROVIDER=anthropic \
-    FOREMAN_BASE_URL=https://api.anthropic.com \
-    FOREMAN_API_KEY=$ANTHROPIC_API_KEY \
-    FOREMAN_MODEL=claude-sonnet-5 \
+    CLOSEDOUT_PROVIDER=anthropic \
+    CLOSEDOUT_BASE_URL=https://api.anthropic.com \
+    CLOSEDOUT_API_KEY=$ANTHROPIC_API_KEY \
+    CLOSEDOUT_MODEL=claude-sonnet-5 \
       sh scripts/inspect.sh out/loop-1-brief.md src/parse_window.py out/loop-1-insp-a.md
 
-    FOREMAN_PROVIDER=openai \
-    FOREMAN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
-    FOREMAN_API_KEY=$GOOGLE_API_KEY \
-    FOREMAN_MODEL=gemini-2.5-pro \
+    CLOSEDOUT_PROVIDER=openai \
+    CLOSEDOUT_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
+    CLOSEDOUT_API_KEY=$GOOGLE_API_KEY \
+    CLOSEDOUT_MODEL=gemini-2.5-pro \
       sh scripts/inspect.sh out/loop-1-brief.md src/parse_window.py out/loop-1-insp-b.md
 
 The prompt is the rubric from `templates/inspector-rubric.md`, the brief, and the
@@ -112,9 +112,9 @@ file. The first line of the reply is PASS or FAIL, and the findings below it are
 `severity: file:line: issue`. The script's exit code is 0, 1 or 2, so a shell
 `if` can branch on it directly.
 
-    python3 ledger/foreman.py receipt 1 --kind inspection \
+    python3 ledger/closedout.py receipt 1 --kind inspection \
       --path out/loop-1-insp-a.md --model claude-sonnet-5 --verdict PASS
-    python3 ledger/foreman.py receipt 1 --kind inspection \
+    python3 ledger/closedout.py receipt 1 --kind inspection \
       --path out/loop-1-insp-b.md --model gemini-2.5-pro --verdict PASS
 
 A FAIL with a blocker goes back to the coder with the findings attached, and both
@@ -151,15 +151,15 @@ standard library only, so no test file and no test runner have to exist first:
 Read the evidence file before recording the result. One line per case, and the
 script exits nonzero if any of them failed:
 
-    python3 ledger/foreman.py verify 1 --method "ran the brief's edge cases against the delivered function" \
+    python3 ledger/closedout.py verify 1 --method "ran the brief's edge cases against the delivered function" \
       --result PASS --evidence out/loop-1-verify.txt
-    python3 ledger/foreman.py done 1
+    python3 ledger/closedout.py done 1
 
 If you skip the inspection or the verification, `done` refuses and tells you
 which artifact is missing. To see that on a second loop with no evidence filed:
 
-    python3 ledger/foreman.py add "second loop, no evidence yet" --owner coder --class coder
-    python3 ledger/foreman.py done 2
+    python3 ledger/closedout.py add "second loop, no evidence yet" --owner coder --class coder
+    python3 ledger/closedout.py done 2
 
     REFUSED: a loop cannot be done without an inspection receipt with verdict PASS
     and a verification receipt
@@ -170,17 +170,17 @@ which artifact is missing. To see that on a second loop with no evidence filed:
 That refusal comes from a trigger in the schema, not from the CLI being careful,
 so it holds for any other tool that writes to the same database.
 
-    python3 ledger/foreman.py show 1
-    python3 ledger/foreman.py list --json
+    python3 ledger/closedout.py show 1
+    python3 ledger/closedout.py list --json
 
 ## 6. Adding a provider
 
 A provider is three environment variables. If it speaks the OpenAI shape, there
 is nothing to write:
 
-    export FOREMAN_PROVIDER=openai
-    export FOREMAN_BASE_URL=https://your-endpoint.example/v1
-    export FOREMAN_API_KEY=...
+    export CLOSEDOUT_PROVIDER=openai
+    export CLOSEDOUT_BASE_URL=https://your-endpoint.example/v1
+    export CLOSEDOUT_API_KEY=...
 
 Put it in `templates/routing.yaml` as the lane's `primary` with a `receipt:` line
 naming the date and the reason, and it will be picked up by the next dispatch in
@@ -190,8 +190,8 @@ example.
 
 ## 7. Keep it running
 
-    python3 ledger/foreman.py scan
-    python3 ledger/foreman.py bakeoff-check --class coder
+    python3 ledger/closedout.py scan
+    python3 ledger/closedout.py bakeoff-check --class coder
 
 `scan` uses no model and exits 1 when something is stale or overdue, so a timer
 can turn it into a notification. `bakeoff-check` exits 2 when one model has
